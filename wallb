@@ -1,0 +1,127 @@
+#!/usr/bin/python
+#20160504:235349
+import argparse
+import os
+import shutil
+
+
+parser = argparse.ArgumentParser(description="Make background wallpaper slideshow")
+parser.add_argument("name", help = "name of slideshow")
+parser.add_argument("-d", "--directory", default = os.getcwd(), help = "directory containing images")
+parser.add_argument("-s", "--static", type = float, default = 20.0, help="static time intevral in seconds")
+parser.add_argument("-t", "--transition", type = float, default = 0.0, help="transition time intevral in seconds")
+parser.add_argument("-v", "--verbose", default = False, action="store_true", help="verbose")
+
+args = parser.parse_args()
+
+name = args.name
+directory = args.directory
+static = args.static
+transition = args.transition
+verbose = args.verbose
+
+if not os.path.exists(directory):
+	print "ERROR: directory {} does not exist".format(directory)
+	exit(0)
+	
+destination = '/usr/share/backgrounds/{}'.format(name)
+
+if not os.path.exists(destination):
+	try:
+		os.mkdir(destination)
+		if verbose:
+			print "INFO: Creating direcctory {}".format(destination)
+	except OSError:
+		print "ERROR: Permission denied"
+		exit(0)
+elif verbose:
+	print "INFO: Direcctory {} already existing".format(destination)
+
+
+try:
+	""" <name>.xml """
+	xml = open('/usr/share/backgrounds/contest/' + name + '.xml', 'w')
+
+	""" <name>-wallpaper.xml """
+	xmlw = open('/usr/share/gnome-background-properties/' + name + '-wallpapers.xml', 'w')
+except IOError:
+	print "ERROR: Permission denied"
+	exit(0)
+
+
+""" writing in <name>.xml """
+xml.write('<background>\n')
+xml.write('\t<starttime>\n')
+xml.write('\t\t<year>2009</year>\n')
+xml.write('\t\t<month>08</month>\n')
+xml.write('\t\t<day>04</day>\n')
+xml.write('\t\t<hour>00</hour>\n')
+xml.write('\t\t<minute>00</minute>\n')
+xml.write('\t\t<second>00</second>\n')
+xml.write('\t</starttime>\n')
+xml.write('<!-- This animation will start at midnight. -->\n')
+
+""" writing in <name>-wallpaper.xml """
+xmlw.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+xmlw.write('<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">\n')
+xmlw.write('<wallpapers>\n')
+xmlw.write('\t<wallpaper deleted="false">\n')
+xmlw.write('\t\t<name>{}</name>\n'.format(name))
+xmlw.write('\t\t<filename>/usr/share/backgrounds/contest/{}.xml</filename>\n'.format(name))
+xmlw.write('\t<options>zoom</options>\n')
+xmlw.write('\t</wallpaper>\n')
+
+
+count = 0
+first_img = ""
+
+for image in os.listdir(directory):
+	if image.split('.')[-1] in ['jpg', 'JPG', 'jpeg', 'JPEG', 'png', 'PNG']:
+		count += 1
+		try:
+			shutil.copy(image, destination)
+			if verbose:
+				print "INFO: Copying image number {} {} to {}".format(count, image, destination)
+		except Error: 
+			print Error
+			continue
+		
+		img = destination + '/' + image
+		image = image.split('.')[0]
+					
+		if count == 1:
+			first_img = img
+		else:
+			""" writing in <name>.xml """
+			xml.write('\t\t<to>{}</to>\n'.format(img))
+			xml.write('\t</transition>\n')
+		
+		""" writing in <name>.xml """
+		xml.write('\t<static>\n')
+		xml.write('\t\t<duration>{}</duration>\n'.format(static))
+		xml.write('\t\t<file>{}</file>\n'.format(img))
+		xml.write('\t</static>\n')
+		xml.write('\t<transition>\n')
+		xml.write('\t\t<duration>{}</duration>\n'.format(transition))
+		xml.write('\t\t<from>{}</from>\n'.format(img))
+		
+		""" writing in <name>-wallpaper.xml """
+		xmlw.write('\t<wallpaper>\n')
+		xmlw.write('\t\t<name>{}</name>\n'.format(image))
+		xmlw.write('\t\t<filename>{}</filename>\n'.format(img))
+		xmlw.write('\t\t<options>zoom</options>\n')
+		xmlw.write('\t\t<pcolor>#000000</pcolor>\n')
+		xmlw.write('\t\t<scolor>#000000</scolor>\n')
+		xmlw.write('\t\t<shade_type>solid</shade_type>\n')
+		xmlw.write('\t</wallpaper>\n')
+
+""" writing in <name>.xml """
+xml.write('\t\t<to>{}</to>\n'.format(first_img))
+xml.write('\t</transition>\n')
+xml.write('</background>')
+
+""" writing in <name>-wallpaper.xml """
+xmlw.write('</wallpapers>')
+
+xml.close()
+xmlw.close()
