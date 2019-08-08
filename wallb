@@ -1,16 +1,26 @@
 #!/usr/bin/python
-#20160504:235349
+# 20190808:031415
 import argparse
 import os
 import shutil
+import re
+import os.path as osp
+
+
+def natural_sort(x):
+    return [int(y) if y.isdigit() else y for y in re.split(r'(\d+)', x)]
+
+
+def is_valid(img):
+    return img.split('.')[-1] in ['jpg', 'JPG', 'jpeg', 'JPEG', 'png', 'PNG']
 
 
 parser = argparse.ArgumentParser(description="Make background wallpaper slideshow")
-parser.add_argument("name", help = "name of slideshow")
-parser.add_argument("-d", "--directory", default = os.getcwd(), help = "directory containing images")
-parser.add_argument("-s", "--static", type = float, default = 20.0, help="static time intevral in seconds")
-parser.add_argument("-t", "--transition", type = float, default = 0.0, help="transition time intevral in seconds")
-parser.add_argument("-v", "--verbose", default = False, action="store_true", help="verbose")
+parser.add_argument("name", help="name of slideshow")
+parser.add_argument("-d", "--directory", default=os.getcwd(), help="directory containing images")
+parser.add_argument("-s", "--static", type=float, default=20.0, help="static time intevral in seconds")
+parser.add_argument("-t", "--transition", type=float, default=0.0, help="transition time intevral in seconds")
+parser.add_argument("-v", "--verbose", default=False, action="store_true", help="verbose")
 
 args = parser.parse_args()
 
@@ -21,33 +31,31 @@ transition = args.transition
 verbose = args.verbose
 
 if not os.path.exists(directory):
-	print "ERROR: directory {} does not exist".format(directory)
-	exit(0)
-	
+    print("ERROR: directory {} does not exist".format(directory))
+    exit(0)
+
 destination = '/usr/share/backgrounds/{}'.format(name)
 
 if not os.path.exists(destination):
-	try:
-		os.mkdir(destination)
-		if verbose:
-			print "INFO: Creating direcctory {}".format(destination)
-	except OSError:
-		print "ERROR: Permission denied"
-		exit(0)
+    try:
+        os.mkdir(destination)
+        if verbose:
+            print("INFO: Creating directory {}".format(destination))
+    except OSError:
+        print("ERROR: Permission denied")
+        exit(0)
 elif verbose:
-	print "INFO: Direcctory {} already existing".format(destination)
-
+    print("INFO: Directory {} already existing".format(destination))
 
 try:
-	""" <name>.xml """
-	xml = open('/usr/share/backgrounds/contest/' + name + '.xml', 'w')
+    """ <name>.xml """
+    xml = open("/usr/share/backgrounds/contest/{}.xml".format(name), 'w')
 
-	""" <name>-wallpaper.xml """
-	xmlw = open('/usr/share/gnome-background-properties/' + name + '-wallpapers.xml', 'w')
+    """ <name>-wallpaper.xml """
+    xmlw = open("/usr/share/gnome-background-properties/{}-wallpapers.xml".format(name), 'w')
 except IOError:
-	print "ERROR: Permission denied"
-	exit(0)
-
+    print("ERROR: Permission denied")
+    exit(0)
 
 """ writing in <name>.xml """
 xml.write('<background>\n')
@@ -71,52 +79,52 @@ xmlw.write('\t\t<filename>/usr/share/backgrounds/contest/{}.xml</filename>\n'.fo
 xmlw.write('\t<options>zoom</options>\n')
 xmlw.write('\t</wallpaper>\n')
 
-
 count = 0
-first_img = ""
+first_image_path = ""
 
-for image in os.listdir(directory):
-	if image.split('.')[-1] in ['jpg', 'JPG', 'jpeg', 'JPEG', 'png', 'PNG']:
-		count += 1
-		try:
-			shutil.copy(image, destination)
-			if verbose:
-				print "INFO: Copying image number {} {} to {}".format(count, image, destination)
-		except Error: 
-			print Error
-			continue
-		
-		img = destination + '/' + image
-		image = image.split('.')[0]
-					
-		if count == 1:
-			first_img = img
-		else:
-			""" writing in <name>.xml """
-			xml.write('\t\t<to>{}</to>\n'.format(img))
-			xml.write('\t</transition>\n')
-		
-		""" writing in <name>.xml """
-		xml.write('\t<static>\n')
-		xml.write('\t\t<duration>{}</duration>\n'.format(static))
-		xml.write('\t\t<file>{}</file>\n'.format(img))
-		xml.write('\t</static>\n')
-		xml.write('\t<transition>\n')
-		xml.write('\t\t<duration>{}</duration>\n'.format(transition))
-		xml.write('\t\t<from>{}</from>\n'.format(img))
-		
-		""" writing in <name>-wallpaper.xml """
-		xmlw.write('\t<wallpaper>\n')
-		xmlw.write('\t\t<name>{}</name>\n'.format(image))
-		xmlw.write('\t\t<filename>{}</filename>\n'.format(img))
-		xmlw.write('\t\t<options>zoom</options>\n')
-		xmlw.write('\t\t<pcolor>#000000</pcolor>\n')
-		xmlw.write('\t\t<scolor>#000000</scolor>\n')
-		xmlw.write('\t\t<shade_type>solid</shade_type>\n')
-		xmlw.write('\t</wallpaper>\n')
+images = list(map(lambda img: osp.join(directory, img), sorted(os.listdir(directory), key=natural_sort)))
+
+for image in images:
+    if is_valid(image):
+        count += 1
+        try:
+            shutil.copy(image, destination)
+            image = osp.basename(image)
+            image_path = osp.join(destination, image)
+            if verbose:
+                print("INFO: Copied image number {0} {1} to {2}".format(count, image, image_path))
+        except Exception as e:
+            print(e)
+            continue
+
+        if count == 1:
+            first_image_path = image_path
+        else:
+            """ writing in <name>.xml """
+            xml.write('\t\t<to>{}</to>\n'.format(image_path))
+            xml.write('\t</transition>\n')
+
+        """ writing in <name>.xml """
+        xml.write('\t<static>\n')
+        xml.write('\t\t<duration>{}</duration>\n'.format(static))
+        xml.write('\t\t<file>{}</file>\n'.format(image_path))
+        xml.write('\t</static>\n')
+        xml.write('\t<transition>\n')
+        xml.write('\t\t<duration>{}</duration>\n'.format(transition))
+        xml.write('\t\t<from>{}</from>\n'.format(image_path))
+
+        """ writing in <name>-wallpaper.xml """
+        xmlw.write('\t<wallpaper>\n')
+        xmlw.write('\t\t<name>{}</name>\n'.format(image))
+        xmlw.write('\t\t<filename>{}</filename>\n'.format(image_path))
+        xmlw.write('\t\t<options>zoom</options>\n')
+        xmlw.write('\t\t<pcolor>#000000</pcolor>\n')
+        xmlw.write('\t\t<scolor>#000000</scolor>\n')
+        xmlw.write('\t\t<shade_type>solid</shade_type>\n')
+        xmlw.write('\t</wallpaper>\n')
 
 """ writing in <name>.xml """
-xml.write('\t\t<to>{}</to>\n'.format(first_img))
+xml.write('\t\t<to>{}</to>\n'.format(first_image_path))
 xml.write('\t</transition>\n')
 xml.write('</background>')
 
